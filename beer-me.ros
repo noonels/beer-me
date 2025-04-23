@@ -8,33 +8,107 @@ exec ros -Q -- $0 "$@"
   #+quicklisp(ql:quickload '() :silent t)
   )
 
-(defparameter *resources*)
+(defparameter *resources* nil)
 
 (defpackage :ros.script.beer-me.3954356029
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
+(defclass query ()
+  ((environment
+    :initarg :env
+    :accessor env)
+   (filters
+    :initarg :filters
+    :accessor filters)))
+
+(defclass order-query (query) ())
+;; Changelog [coming soon]
+;; (defclass changelog (query)
+;;   (()))
+(defclass product-query (query) ())
+(defclass user-query (query)
+  ((specifier                           ; meant for `missing' and `headless'
+    :initarg :spec
+    :accessor spec)))
+
+(defgeneric get-query (query)
+  (:documentation "Turns a given resource/filter object into a SQL query"))
+
+(defmethod get-query ((query order-query))
+  (format nil "~
+--SQL
+SELECT
+    o.*
+    oli.*
+FROM \"order\" o
+JOIN order-financial of ON of.order_id = o.id
+JOIN order-line-items oli ON oli.order_id = o.id
+~A
+--SQL-END
+  " (get-filters query)))
+
+
+;; (defmethod get-query ((query changelog))
+;;   (format nil "~
+;; --SQL
+;; SELECT
+;;     og.*
+;; FROM order_changelog og
+;; ~A
+;; --SQL-END
+;; " (get-filters query)))
+
+(defmethod get-query ((query product-query))
+  (format nil "~
+--SQL
+SELECT
+    i.*
+    ib.*
+    b.*
+FROM item i
+JOIN item_batch ib ON i.id = ib.item_id
+JOIN batch b ON b.id = ib.batch_id
+~A
+--SQL-END
+" (get-filters query)))
+
+(defmethod get-query ((query user-query))
+  (format nil "~
+--SQL
+SELECT
+    u.*
+    o.*
+    our.*
+    r.*
+FROM user u
+JOIN organization o ON u.organization_id = o.id
+JOIN organization_user_role our ON our.user_id = u.id
+JOIN role r ON our.role_id = r.id
+~A
+--SQL-END
+" (get-filters query)))
+
 (defun parse-args (argv)
-  ;; TODO
-  )
+  `(,(make-instance 'order-query :env 'ny :filters '((number . "NY12345")
+                                                     (id . "fake-order-id")))))
 
 (defun get-filters (resource)
-  ;; TODO
-  )
-
-(defun get-query (resource)
-  ;; TODO
-  )
+  (with-slots (filters) resource
+    (format nil "WHERE~{ ~A~^ AND~&     ~}"
+            (loop :for filter-pair :in filters
+                  :collect (format nil "~A = '~A'"
+                                   (car filter-pair)
+                                   (cdr filter-pair))))))
 
 (defun run-query (query)
-  ;; TODO
-  )
+  (format t "[[ QUERY ]]~%~A" query))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (setf *resources* (parse-args argv)) ; parse the arguments into the resource tree
+  (setf *resources* (parse-args argv))
   (loop :for resource :in *resources*
-        :collecting
-        (run-query (get-query (get-filters resource))))
+        :collect
+        (run-query (get-query resource)))
   (format t "~A" argv))
 ;;; vim: set ft=lisp lisp:
