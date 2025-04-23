@@ -1,0 +1,40 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp(ql:quickload '() :silent t)
+  )
+
+(defparameter *resources*)
+
+(defpackage :ros.script.beer-me.3954356029
+  (:use :cl))
+(in-package :ros.script.beer-me.3954356029)
+
+(defun parse-args (argv)
+  ;; TODO
+  )
+
+(defun get-filters (resource)
+  ;; TODO
+  )
+
+(defun get-query (resource)
+  ;; TODO
+  )
+
+(defun run-query (query)
+  ;; TODO
+  )
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (setf *resources* (parse-args argv)) ; parse the arguments into the resource tree
+  (loop :for resource :in *resources*
+        :collecting
+        (run-query (get-query (get-filters resource))))
+  (format t "~A" argv))
+;;; vim: set ft=lisp lisp:
