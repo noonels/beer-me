@@ -1,0 +1,39 @@
+* beer-me
+
+Beer Me is a utility designed to quickly answer questions commonly brought forth in an on-call situation.
+
+#+begin_src bash
+  # example usage:
+  beer-me order --id='<some uuid>' # get an order by id
+
+  beer-me order number=25436      # getting an order by number
+
+  beer-me batches item-code='ABSDF523452' # getting all the batches for a given item by code
+
+                # +------note the custom query arguments of the form [direction]-[num]-[unit]
+                # |      these identifiers should be generated for some cartesian product
+                # v      of time-based options
+  beer-me users last-two-days     # getting all users created/added in the last two days
+
+  beer-me missing order number=(23456 546789 3245345) # Find any absent orders from the given list
+
+  beer-me headless user email='please@help.me' # Find all info usually returned with the USER,
+                                               # after USER has been deleted. (essentially cleaning up a missing CASCADE)
+#+end_src
+
+The idea is that the beer-me language is essentially a tree of commands.
+The root node is the utility itself, =beer-me=. Connected to this is (sometimes) an AUGMENTATION, followed by one or more RESOURCES.
+** Augmentations
+These consist of =missing= and =headless=.
+
+** Resources
+- order
+- product
+- batches <-- special plural case
+- user
+
+  Tree like structure
+  e.g. item ==> batches --> batch code, name, expiration date
+  /all leaves are filters/, regardless of how high up the tree they are
+
+*** Filters
