@@ -27,7 +27,7 @@ exec ros -Q -- $0 "$@"
 (defclass order (query) ())
 (defclass product (query) ())
 (defclass user (query)
-  ((specifier                           ; meant for `missing' and `headless'
+  ((specifier                           ; TODO: meant for `missing' and `headless'
     :initarg :spec
     :accessor spec)))
 
@@ -105,9 +105,9 @@ JOIN role ON organization_user_role.role_id = role.id
   (with-slots (env) resource
     (cond ((eq env nil)    (format t "[[ QUERY ]]~%~A"
                                    (get-query resource)))
-          ((eq env 'ny)    (print "ny"))
-          ((eq env 'ca)    (print "ca"))
-          ((eq env 'local) (print "local"))
+          ((eq env 'ny)    (print "ny"))    ; TODO
+          ((eq env 'ca)    (print "ca"))    ; TODO
+          ((eq env 'local) (print "local")) ; TODO
           (t               (error 'invalid-environment
                                   :message (format t "Invalid environment: ~A" env))))))
 
