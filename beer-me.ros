@@ -3,31 +3,30 @@
 #|
 exec ros -Q -- $0 "$@"
 |#
+
 (progn ;;init forms
   (ros:ensure-asdf)
   #+quicklisp(ql:quickload '() :silent t)
   )
 
-(defparameter *resources* nil)
 
 (defpackage :ros.script.beer-me.3954356029
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
+(defparameter *resources* nil)
+
 (defclass query ()
-  ((environment
+  ((env
     :initarg :env
     :accessor env)
    (filters
     :initarg :filters
     :accessor filters)))
 
-(defclass order-query (query) ())
-;; Changelog [coming soon]
-;; (defclass changelog (query)
-;;   (()))
-(defclass product-query (query) ())
-(defclass user-query (query)
+(defclass order (query) ())
+(defclass product (query) ())
+(defclass user (query)
   ((specifier                           ; meant for `missing' and `headless'
     :initarg :spec
     :accessor spec)))
@@ -35,80 +34,87 @@ exec ros -Q -- $0 "$@"
 (defgeneric get-query (query)
   (:documentation "Turns a given resource/filter object into a SQL query"))
 
-(defmethod get-query ((query order-query))
-  (format nil "~
+(defmacro build-query (query-type query-str)
+  `(defmethod get-query ((query ,query-type))
+     (format nil ,query-str (or (get-filters query)))))
+
+(build-query order "~
 --SQL
 SELECT
-    o.*
-    oli.*
+    \"order\".*
+    order_line_items.*
 FROM \"order\" o
 JOIN order-financial of ON of.order_id = o.id
 JOIN order-line-items oli ON oli.order_id = o.id
 ~A
 --SQL-END
-  " (get-filters query)))
+  ")
 
-
-;; (defmethod get-query ((query changelog))
-;;   (format nil "~
-;; --SQL
-;; SELECT
-;;     og.*
-;; FROM order_changelog og
-;; ~A
-;; --SQL-END
-;; " (get-filters query)))
-
-(defmethod get-query ((query product-query))
-  (format nil "~
+(build-query product "~
 --SQL
 SELECT
-    i.*
-    ib.*
-    b.*
-FROM item i
-JOIN item_batch ib ON i.id = ib.item_id
-JOIN batch b ON b.id = ib.batch_id
+    item.*
+    item_batch.*
+    batch.*
+FROM item
+JOIN item_batch ON item.id = item_batch.item_id
+JOIN batch ON batch.id = item_batch.batch_id
 ~A
 --SQL-END
-" (get-filters query)))
+")
 
-(defmethod get-query ((query user-query))
-  (format nil "~
+(build-query user "~
 --SQL
 SELECT
-    u.*
-    o.*
-    our.*
-    r.*
-FROM user u
-JOIN organization o ON u.organization_id = o.id
-JOIN organization_user_role our ON our.user_id = u.id
-JOIN role r ON our.role_id = r.id
+    \"user\".*
+    organization.*
+    organization_user_role.*
+    role.*
+FROM user
+JOIN organization ON \"user\".organization_id = organization.id
+JOIN organization_user_role ON organization_user_role.user_id = \"user\".id
+JOIN role ON organization_user_role.role_id = role.id
 ~A
 --SQL-END
-" (get-filters query)))
+")
 
 (defun parse-args (argv)
-  `(,(make-instance 'order-query :env 'ny :filters '((number . "NY12345")
-                                                     (id . "fake-order-id")))))
+  "Takes command-line arguments from ARGV and parses them into a RESOURCE"
+  (let ((environment (read-from-string (car argv)))
+        (query-type (read-from-string (cadr argv)))
+        (filters (cddr argv)))
+    (list (make-instance query-type
+                         :env environment
+                         :filters (loop
+                                    :for filter
+                                      :on filters
+                                    :by #'cddr
+                                    :collect (cons (car filter) (cadr filter)))))))
 
 (defun get-filters (resource)
   (with-slots (filters) resource
-    (format nil "WHERE~{ ~A~^ AND~&     ~}"
-            (loop :for filter-pair :in filters
-                  :collect (format nil "~A = '~A'"
-                                   (car filter-pair)
-                                   (cdr filter-pair))))))
+    (unless (= 0 (length filters))
+      (format nil "WHERE~{ ~A~^ AND~&     ~}"
+              (loop :for filter-pair :in filters
+                    :collect (format nil "~A = '~A'"
+                                     (car filter-pair)
+                                     (cdr filter-pair)))))))
 
-(defun run-query (query)
-  (format t "[[ QUERY ]]~%~A" query))
+
+(defun run-query (resource)
+  (with-slots (env) resource
+    (cond ((eq env nil)    (format t "[[ QUERY ]]~%~A"
+                                   (get-query resource)))
+          ((eq env 'ny)    (print "ny"))
+          ((eq env 'ca)    (print "ca"))
+          ((eq env 'local) (print "local"))
+          (t               (error 'invalid-environment
+                                  :message (format t "Invalid environment: ~A" env))))))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
   (setf *resources* (parse-args argv))
   (loop :for resource :in *resources*
         :collect
-        (run-query (get-query resource)))
-  (format t "~A" argv))
+        (run-query resource)))
 ;;; vim: set ft=lisp lisp:
