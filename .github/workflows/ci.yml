@@ -18,8 +18,6 @@ jobs:
           LISP: ${{ matrix.lisp }}
         run: |
           curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
-      - name: Install Rove
-        run: ros install rove
       - name: Build Artifact
         run: |
           PATH="~/.roswell/bin:$PATH"
