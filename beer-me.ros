@@ -14,44 +14,16 @@ exec ros -Q -- $0 "$@"
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
-(defparameter *resources* nil)
-
-(defclass query ()
-  ((env
-    :initarg :env
-    :accessor env)
-   (filters
-    :initarg :filters
-    :accessor filters)))
-
-(defclass order (query) ())
-(defclass product (query) ())
-(defclass user (query)
-  ((specifier                           ; TODO: meant for `missing' and `headless'
-    :initarg :spec
-    :accessor spec)))
-
-(defgeneric get-query (query)
-  (:documentation "Turns a given resource/filter object into a SQL query"))
-
-(defmacro build-query (query-type query-str)
-  `(defmethod get-query ((query ,query-type))
-     (format nil ,query-str (or (get-filters query)))))
-
-(build-query order "~
---SQL
+(defparameter default-order-query "
 SELECT
     \"order\".*
     order_line_items.*
 FROM \"order\" o
 JOIN order-financial of ON of.order_id = o.id
 JOIN order-line-items oli ON oli.order_id = o.id
-~A
---SQL-END
-  ")
+")
 
-(build-query product "~
---SQL
+(defparameter default-product-query "
 SELECT
     item.*
     item_batch.*
@@ -59,12 +31,9 @@ SELECT
 FROM item
 JOIN item_batch ON item.id = item_batch.item_id
 JOIN batch ON batch.id = item_batch.batch_id
-~A
---SQL-END
 ")
 
-(build-query user "~
---SQL
+(defparameter default-user-query "
 SELECT
     \"user\".*
     organization.*
@@ -74,47 +43,44 @@ FROM user
 JOIN organization ON \"user\".organization_id = organization.id
 JOIN organization_user_role ON organization_user_role.user_id = \"user\".id
 JOIN role ON organization_user_role.role_id = role.id
-~A
---SQL-END
 ")
 
-(defun parse-args (argv)
-  "Takes command-line arguments from ARGV and parses them into a RESOURCE"
-  (let ((environment (read-from-string (car argv)))
-        (query-type (read-from-string (cadr argv)))
-        (filters (cddr argv)))
-    (list (make-instance query-type
-                         :env environment
-                         :filters (loop
-                                    :for filter
-                                      :on filters
-                                    :by #'cddr
-                                    :collect (cons (car filter) (cadr filter)))))))
+(defun setup-default-queries ())
 
-(defun get-filters (resource)
-  (with-slots (filters) resource
-    (unless (= 0 (length filters))
-      (format nil "WHERE~{ ~A~^ AND~&     ~}"
-              (loop :for filter-pair :in filters
-                    :collect (format nil "~A = '~A'"
-                                     (car filter-pair)
-                                     (cdr filter-pair)))))))
+(defun get-filters (filter-pairs)
+  (unless (= 0 (length filter-pairs))
+    (format nil "WHERE~{ ~A~^ AND~&     ~}"
+            (loop :for filter-pair :in filter-pairs
+                  :collect (format nil "~A = ~A"
+                                   (car filter-pair)
+                                   (cdr filter-pair))))))
 
+(defun print-usage ()
+  (format t "USAGE: beer-me <environment> <resource> [filters]"))
 
-(defun run-query (resource)
-  (with-slots (env) resource
-    (cond ((eq env nil)    (format t "[[ QUERY ]]~%~A"
-                                   (get-query resource)))
-          ((eq env 'ny)    (print "ny"))    ; TODO
-          ((eq env 'ca)    (print "ca"))    ; TODO
-          ((eq env 'local) (print "local")) ; TODO
-          (t               (error 'invalid-environment
-                                  :message (format t "Invalid environment: ~A" env))))))
+(defun get-query (query-type)
+  default-order-query)
+
+(defun run-query (env query-type filters)
+  (cond ((eq env 'query)    (format t "[[ QUERY ]]~%~A~%"
+                                    (concatenate 'string
+                                                 (get-query query-type)
+                                                 filters
+                                                 ";")))
+        ((eq env 'ny)    (print "ny"))    ; TODO
+        ((eq env 'ca)    (print "ca"))    ; TODO
+        ((eq env 'local) (print "local")) ; TODO
+        (t               (error 'invalid-environment
+                                :message (format t "Invalid environment: ~A" env)))))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (setf *resources* (parse-args argv))
-  (loop :for resource :in *resources*
-        :collect
-        (run-query resource)))
+  (let* ((environment  (read-from-string (car argv)))
+         (query-type   (read-from-string (cadr argv)))
+         (filters-list (loop :for filter :on (cddr argv) :by #'cddr
+                             :collect (cons (car filter) (cadr filter))))
+         (filters      (get-filters filters-list)))
+    (setup-default-queries)
+    (run-query environment query-type filters)))
+
 ;;; vim: set ft=lisp lisp:
