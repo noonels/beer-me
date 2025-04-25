@@ -14,6 +14,8 @@ exec ros -Q -- $0 "$@"
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
+;;; [SETUP DEFAULT QUERIES]
+
 (defparameter default-order-query "
 SELECT
     \"order\".*
@@ -45,7 +47,23 @@ JOIN organization_user_role ON organization_user_role.user_id = \"user\".id
 JOIN role ON organization_user_role.role_id = role.id
 ")
 
-(defun setup-default-queries ())
+(defmacro setup-query (name default-query)
+  (let ((filename (uiop:native-namestring
+                   (concatenate 'string
+                                "~/.config/beer-me/"
+                                name
+                                ".sql"))))
+    `(unless (probe-file ,filename)
+       (with-open-file (f ,filename :direction :output
+                                    :if-does-not-exist :create)
+         (write-sequence ,default-query f)))))
+
+(defun setup-default-queries ()
+  (setup-query "order" default-order-query)
+  (setup-query "product" default-product-query)
+  (setup-query "user" default-user-query))
+
+;;; [BEGIN ACTUAL PROGRAM LOGIC]
 
 (defun get-filters (filter-pairs)
   (unless (= 0 (length filter-pairs))
@@ -58,9 +76,19 @@ JOIN role ON organization_user_role.role_id = role.id
 (defun print-usage ()
   (format t "USAGE: beer-me <environment> <resource> [filters]"))
 
+(define-condition missing-template (error) ())
 (defun get-query (query-type)
-  default-order-query)
+  (let ((filename (uiop:native-namestring
+                   (concatenate 'string
+                                "~/.config/beer-me/"
+                                query-type
+                                ".sql"))))
+    (if (probe-file filename)
+        (uiop:read-file-string filename)
+        (error 'missing-template
+               :message (format t "Missing template file for ~A: ~A~%" query-type filename)))))
 
+(define-condition invalid-environment (error) ())
 (defun run-query (env query-type filters)
   (cond ((eq env 'query)    (format t "[[ QUERY ]]~%~A~%"
                                     (concatenate 'string
@@ -69,18 +97,22 @@ JOIN role ON organization_user_role.role_id = role.id
                                                  ";")))
         ((eq env 'ny)    (print "ny"))    ; TODO
         ((eq env 'ca)    (print "ca"))    ; TODO
-        ((eq env 'local) (print "local")) ; TODO
         (t               (error 'invalid-environment
-                                :message (format t "Invalid environment: ~A" env)))))
+                                :message (format t "Invalid environment: ~A~%" env)))))
+
+
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (let* ((environment  (read-from-string (car argv)))
-         (query-type   (read-from-string (cadr argv)))
-         (filters-list (loop :for filter :on (cddr argv) :by #'cddr
-                             :collect (cons (car filter) (cadr filter))))
-         (filters      (get-filters filters-list)))
-    (setup-default-queries)
-    (run-query environment query-type filters)))
+  (handler-bind ((error #'print-usage))
+    (if (< (length argv) 2)
+        (print-usage)
+        (let* ((environment  (read-from-string (car argv)))
+               (query-type   (cadr argv))
+               (filters-list (loop :for filter :on (cddr argv) :by #'cddr
+                                   :collect (cons (car filter) (cadr filter))))
+               (filters      (get-filters filters-list)))
+          (setup-default-queries)
+          (run-query environment query-type filters)))))
 
 ;;; vim: set ft=lisp lisp:
