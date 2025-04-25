@@ -4,36 +4,43 @@ Beer Me is a utility designed to quickly answer questions commonly brought forth
 
 #+begin_src bash
   # example usage:
-  beer-me order --id='<some uuid>' # get an order by id
+  beer-me ny order id '<some uuid>' # get an order by id from the ny db
 
-  beer-me order number=25436      # getting an order by number
+  # get an order by id, while specifying the tax amount expected on the 'order_financial' table from the ca db
+  beer-me ny order id '<some uuid>' "order_financial.tax_amount" 10
 
-  beer-me batches item-code='ABSDF523452' # getting all the batches for a given item by code
-
-                # +------note the custom query arguments of the form [direction]-[num]-[unit]
-                # |      these identifiers should be generated for some cartesian product
-                # v      of time-based options
-  beer-me users last-two-days     # getting all users created/added in the last two days
-
-  beer-me missing order number=(23456 546789 3245345) # Find any absent orders from the given list
-
-  beer-me headless user email='please@help.me' # Find all info usually returned with the USER,
-                                               # after USER has been deleted. (essentially cleaning up a missing CASCADE)
+  beer-me ny order number=25436      # getting an order by number
 #+end_src
 
-The idea is that the beer-me language is essentially a tree of commands.
-The root node is the utility itself, =beer-me=. Connected to this is (sometimes) an AUGMENTATION, followed by one or more RESOURCES.
-** Augmentations
-These consist of =missing= and =headless=.
+** Usage
+Usage follows the form =beer-me <environment> <resource> [filters]=
 
-** Resources
-- order
-- product
-- batches <-- special plural case
-- user
+** Environment
+The environment can be /exactly one of/ =ny=, =ca=, or =query=.
 
-  Tree like structure
-  e.g. item ==> batches --> batch code, name, expiration date
-  /all leaves are filters/, regardless of how high up the tree they are
+In the event of =ny= or =ca=, this determines which DB =psql= will be run against.
 
-*** Filters
+The =query= environment is a special case that will simply output the SQL to run,
+allowing the user to manually paste the command wherever convenient.
+
+** Resource
+A =resource= can be thought of as either a row from a single table,
+or a row from a series of tables joined together.
+
+By default, the resources =order=, =product=, and =user= are defined,
+and their template SQL is stored in =~/.config/beer-me/{order product user}.sql=.
+
+The user can add any resources they wish, simply by adding a file named
+=~/.config/beer-me/<resource>.sql=.
+
+NOTE: it is very important that the terminating =;= is *not* included in the file,
+or filter injection will /not/ work.
+
+** Filters
+Any arguments passed after the resource will be considered part of the =filters=.
+
+=Filters= are expected to be in the form of whitespace-separated elements,
+which will be parsed in pairs, and reformated into a where clause.
+
+Double quotes and single quotes are both preserved, so a knowledge of the template
+you are populating allows you to be cleve about how those filters are injected.
