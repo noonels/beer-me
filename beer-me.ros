@@ -21,8 +21,8 @@ SELECT
     \"order\".*
     order_line_items.*
 FROM \"order\" o
-JOIN order-financial of ON of.order_id = o.id
-JOIN order-line-items oli ON oli.order_id = o.id
+JOIN order_financial ON order_financial.order_id = \"order\".id
+JOIN order_line_items ON order_line_items.order_id = \"order\".id
 ")
 
 (defparameter default-product-query "
