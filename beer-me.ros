@@ -59,6 +59,7 @@ JOIN role ON organization_user_role.role_id = role.id
          (write-sequence ,default-query f)))))
 
 (defun setup-default-queries ()
+  (ensure-directories-exist (uiop:native-namestring "~/.config/beer-me/"))
   (setup-query "order" default-order-query)
   (setup-query "product" default-product-query)
   (setup-query "user" default-user-query))
@@ -90,7 +91,7 @@ JOIN role ON organization_user_role.role_id = role.id
 
 (define-condition invalid-environment (error) ())
 (defun run-query (env query-type filters)
-  (cond ((eq env 'query)    (format t "[[ QUERY ]]~%~A~%"
+  (cond ((eq env 'query)    (format t "[[ QUERY ]]~A~%"
                                     (concatenate 'string
                                                  (get-query query-type)
                                                  filters
