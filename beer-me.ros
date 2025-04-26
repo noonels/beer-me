@@ -6,7 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (progn ;;init forms
   (ros:ensure-asdf)
-  #+quicklisp(ql:quickload '() :silent t)
+  #+quicklisp(ql:quickload '("str") :silent t)
   )
 
 
@@ -18,17 +18,17 @@ exec ros -Q -- $0 "$@"
 
 (defparameter default-order-query "
 SELECT
-    \"order\".*
+    \"order\".*,
     order_line_items.*
-FROM \"order\" o
+FROM \"order\"
 JOIN order_financial ON order_financial.order_id = \"order\".id
 JOIN order_line_items ON order_line_items.order_id = \"order\".id
 ")
 
 (defparameter default-product-query "
 SELECT
-    item.*
-    item_batch.*
+    item.*,
+    item_batch.*,
     batch.*
 FROM item
 JOIN item_batch ON item.id = item_batch.item_id
@@ -37,9 +37,9 @@ JOIN batch ON batch.id = item_batch.batch_id
 
 (defparameter default-user-query "
 SELECT
-    \"user\".*
-    organization.*
-    organization_user_role.*
+    \"user\".*,
+    organization.*,
+    organization_user_role.*,
     role.*
 FROM user
 JOIN organization ON \"user\".organization_id = organization.id
@@ -90,16 +90,25 @@ JOIN role ON organization_user_role.role_id = role.id
                :message (format t "Missing template file for ~A: ~A~%" query-type filename)))))
 
 (define-condition invalid-environment (error) ())
+
+(defun psql-command (env-var default-cmd query-type filters)
+  (str:collapse-whitespaces
+   (concatenate 'string (or (uiop:getenv env-var) default-cmd) " -c \""
+                (get-query query-type)
+                filters ";\"")))
+
 (defun run-query (env query-type filters)
   (cond ((eq env 'query)    (format t "[[ QUERY ]]~A~%"
                                     (concatenate 'string
                                                  (get-query query-type)
                                                  filters
                                                  ";")))
-        ((eq env 'ny)    (print "ny"))    ; TODO
-        ((eq env 'ca)    (print "ca"))    ; TODO
-        (t               (error 'invalid-environment
-                                :message (format t "Invalid environment: ~A~%" env)))))
+        ((eq env 'ny)       (uiop:run-program (psql-command "NY_PSQL_CMD" "echo" query-type filters) :output t))
+        ((eq env 'ca)       (uiop:run-program (psql-command "CA_PSQL_CMD" "echo" query-type filters) :output t))
+        ((eq env 'ca-local) (uiop:run-program (psql-command "CA_LOC_PSQL_CMD" "echo" query-type filters) :output t))
+        ((eq env 'ny-local) (uiop:run-program (psql-command "NY_LOC_PSQL_CMD" "echo" query-type filters) :output t))
+        (t                  (error 'invalid-environment
+                                   :message (format t "Invalid environment: ~A~%" env)))))
 
 
 

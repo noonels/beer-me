@@ -4,12 +4,10 @@ Beer Me is a utility designed to quickly answer questions commonly brought forth
 
 #+begin_src bash
   # example usage:
-  beer-me ny order id '<some uuid>' # get an order by id from the ny db
+  beer-me ny order id "'<some uuid>'" # get an order by id from the ny db
 
   # get an order by id, while specifying the tax amount expected on the 'order_financial' table from the ca db
-  beer-me ny order id '<some uuid>' "order_financial.tax_amount" 10
-
-  beer-me ny order number=25436      # getting an order by number
+  beer-me ny order id "'<some uuid>'" "order_financial.tax_amount" 10 # note that single quotes must be wrapped in double quotes to be preserved
 #+end_src
 
 ** Usage
