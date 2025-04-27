@@ -6,7 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (progn ;;init forms
   (ros:ensure-asdf)
-  #+quicklisp(ql:quickload '("str") :silent t)
+  #+quicklisp(ql:quickload '("str" "split-sequence") :silent t)
   )
 
 
@@ -30,16 +30,18 @@ is replaced with replacement."
             while pos)))
 
 (defparameter *environments* nil)
+(defparameter *config-dir* (uiop:native-namestring "~/.config/beer-me/"))
+(defparameter *env-file* (uiop:native-namestring
+                          (concatenate 'string
+                                       *config-dir*
+                                       ".envlist")))
 
 (defun setup-default-queries ()
-  (let* ((config-dir "~/.config/beer-me/")
-         (filename (uiop:native-namestring
-                    (concatenate 'string config-dir ".envlist"))))
-    (ensure-directories-exist (uiop:native-namestring "~/.config/beer-me/"))
-    (unless (probe-file filename)
-      (with-open-file (f filename :direction :output
+  (ensure-directories-exist *config-dir*)
+  (unless (probe-file *env-file*)
+    (with-open-file (f *env-file* :direction :output
                                   :if-does-not-exist :create)
-        (write-sequence "DEFAULT \"psql -h localhost -d database -U postgres -p 5432\"" f)))))
+      (write-sequence "DEFAULT \"psql -h localhost -d database -U postgres -p 5432\"" f))))
 
 
 (defun get-filters (filter-list)
@@ -55,7 +57,7 @@ is replaced with replacement."
 
 (defun print-usage (&optional ctx)
   (declare (ignorable ctx))
-  (format t "USAGE: beer-me <environment> <resource> [filters]"))
+  (format t "USAGE: beer-me [environment] <resource> [filters]"))
 
 (define-condition missing-template (error) ())
 (defun get-query (query-type)
@@ -84,12 +86,14 @@ is replaced with replacement."
                            ";"))))
 
 (defun get-environments ()
-  (list (cons 'ny    "echo")
-        (cons 'ca    "echo")
-        (cons 'local "echo")))
+  (loop :for env-pair-string :in (str:lines (str:from-file *env-file*))
+        :collect (let ((env-name-pair-list (str:split " " env-pair-string :limit 2)))
+                   (cons (read-from-string (car env-name-pair-list))
+                         (cadr env-name-pair-list)))))
 
 (defun get-args (argv)
   (let ((env (assoc (read-from-string (car argv)) *environments*)))
+    (format t "env: ~A~%read: ~A~%args: ~A~%envs: ~A~%" env (read-from-string (car argv)) argv *environments*)
     (if env
         (values env (cadr argv) (get-filters (cddr argv)))
         (values nil (car argv) (get-filters (cdr argv))))))
