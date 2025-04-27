@@ -75,7 +75,7 @@ is replaced with replacement."
   (if env-pair                                                        ; if we have a valid environment
       (uiop:run-program                                               ; run the psql command for that environment
        (str:collapse-whitespaces                                      ; removing extraneous whitespace
-        (concatenate 'string (cdr env-pair) " -c \""                  ; passing a command
+        (concatenate 'string (cdr env-pair) "\""                      ; passing the query as a string
                      (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource (with quotes escaped)
                      filters ";\"")))                                 ; followed by the statement-ending semicolon
       ;; ELSE
