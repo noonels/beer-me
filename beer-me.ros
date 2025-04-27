@@ -76,7 +76,7 @@ is replaced with replacement."
       (uiop:run-program                                               ; run the psql command for that environment
        (str:collapse-whitespaces                                      ; removing extraneous whitespace
         (concatenate 'string (cdr env-pair) " -c \""                  ; passing a command
-                     (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource
+                     (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource (with quotes escaped)
                      filters ";\"")))                                 ; followed by the statement-ending semicolon
       ;; ELSE
       (format t "[[ QUERY ]]~A~%"      ; simply output the query, without compacting
