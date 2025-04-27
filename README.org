@@ -8,10 +8,10 @@ Usage follows the form =beer-me [environment] <resource> [filters]=
 
 #+begin_src bash
   # example usage:
-  beer-me local order id "'<some uuid>'" # get an order by id from the ny environment/db
+  beer-me local record id "'<some uuid>'" # get an record by id from the 'local' environment/db
 
-  # get an order by id, AND tax amount expected on the 'order_financial' table from the ca env/db
-  beer-me local order id "'<some uuid>'" order_financial.tax_amount 10 # note that single quotes must be wrapped in double quotes to be preserved
+  # get an record by id, AND artist age expected on the 'artist' table from the  env/db
+  beer-me local record id "'<some uuid>'" artist.age 20 # note that single quotes must be wrapped in double quotes to be preserved
 
   beer-me record # output the query to get a record with no filters
 
