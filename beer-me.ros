@@ -14,67 +14,47 @@ exec ros -Q -- $0 "$@"
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
-;;; [SETUP DEFAULT QUERIES]
+(defun replace-all (string part replacement &key (test #'char=))
+  "Returns a new string in which all the occurences of the part
+is replaced with replacement."
+  (with-output-to-string (out)
+    (loop with part-length = (length part)
+          for old-pos = 0 then (+ pos part-length)
+          for pos = (search part string
+                            :start2 old-pos
+                            :test test)
+          do (write-string string out
+                           :start old-pos
+                           :end (or pos (length string)))
+          when pos do (write-string replacement out)
+            while pos)))
 
-(defparameter default-order-query "
-SELECT
-    \"order\".*,
-    order_line_items.*
-FROM \"order\"
-JOIN order_financial ON order_financial.order_id = \"order\".id
-JOIN order_line_items ON order_line_items.order_id = \"order\".id
-")
-
-(defparameter default-product-query "
-SELECT
-    item.*,
-    item_batch.*,
-    batch.*
-FROM item
-JOIN item_batch ON item.id = item_batch.item_id
-JOIN batch ON batch.id = item_batch.batch_id
-")
-
-(defparameter default-user-query "
-SELECT
-    \"user\".*,
-    organization.*,
-    organization_user_role.*,
-    role.*
-FROM user
-JOIN organization ON \"user\".organization_id = organization.id
-JOIN organization_user_role ON organization_user_role.user_id = \"user\".id
-JOIN role ON organization_user_role.role_id = role.id
-")
-
-(defmacro setup-query (name default-query)
-  (let ((filename (uiop:native-namestring
-                   (concatenate 'string
-                                "~/.config/beer-me/"
-                                name
-                                ".sql"))))
-    `(unless (probe-file ,filename)
-       (with-open-file (f ,filename :direction :output
-                                    :if-does-not-exist :create)
-         (write-sequence ,default-query f)))))
+(defparameter *environments* nil)
 
 (defun setup-default-queries ()
-  (ensure-directories-exist (uiop:native-namestring "~/.config/beer-me/"))
-  (setup-query "order" default-order-query)
-  (setup-query "product" default-product-query)
-  (setup-query "user" default-user-query))
+  (let* ((config-dir "~/.config/beer-me/")
+         (filename (uiop:native-namestring
+                    (concatenate 'string config-dir ".envlist"))))
+    (ensure-directories-exist (uiop:native-namestring "~/.config/beer-me/"))
+    (unless (probe-file filename)
+      (with-open-file (f filename :direction :output
+                                  :if-does-not-exist :create)
+        (write-sequence "DEFAULT \"psql -h localhost -d database -U postgres -p 5432\"" f)))))
 
-;;; [BEGIN ACTUAL PROGRAM LOGIC]
 
-(defun get-filters (filter-pairs)
-  (unless (= 0 (length filter-pairs))
-    (format nil "WHERE~{ ~A~^ AND~&     ~}"
-            (loop :for filter-pair :in filter-pairs
-                  :collect (format nil "~A = ~A"
-                                   (car filter-pair)
-                                   (cdr filter-pair))))))
+(defun get-filters (filter-list)
+  (let ((filter-pairs (loop :for filter :on filter-list :by #'cddr
+                            :collect (cons (car filter) (cadr filter)))))
+    (if (= 0 (length filter-pairs))
+        ""
+        (format nil "WHERE~{ ~A~^ AND~&     ~}"
+                (loop :for filter-pair :in filter-pairs
+                      :collect (format nil "~A = ~A"
+                                       (car filter-pair)
+                                       (cdr filter-pair)))))))
 
-(defun print-usage ()
+(defun print-usage (&optional ctx)
+  (declare (ignorable ctx))
   (format t "USAGE: beer-me <environment> <resource> [filters]"))
 
 (define-condition missing-template (error) ())
@@ -89,40 +69,39 @@ JOIN role ON organization_user_role.role_id = role.id
         (error 'missing-template
                :message (format t "Missing template file for ~A: ~A~%" query-type filename)))))
 
-(define-condition invalid-environment (error) ())
+(defun run-query (env-pair query-type filters)
+  (if env-pair                                                        ; if we have a valid environment
+      (uiop:run-program                                               ; run the psql command for that environment
+       (str:collapse-whitespaces                                      ; removing extraneous whitespace
+        (concatenate 'string (cdr env-pair) " -c \""                  ; passing a command
+                     (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource
+                     filters ";\"")))                                 ; followed by the statement-ending semicolon
+      ;; ELSE
+      (format t "[[ QUERY ]]~A~%"      ; simply output the query, without compacting
+              (concatenate 'string
+                           (get-query query-type)
+                           filters
+                           ";"))))
 
-(defun psql-command (env-var default-cmd query-type filters)
-  (str:collapse-whitespaces
-   (concatenate 'string (or (uiop:getenv env-var) default-cmd) " -c \""
-                (get-query query-type)
-                filters ";\"")))
+(defun get-environments ()
+  (list (cons 'ny    "echo")
+        (cons 'ca    "echo")
+        (cons 'local "echo")))
 
-(defun run-query (env query-type filters)
-  (cond ((eq env 'query)    (format t "[[ QUERY ]]~A~%"
-                                    (concatenate 'string
-                                                 (get-query query-type)
-                                                 filters
-                                                 ";")))
-        ((eq env 'ny)       (uiop:run-program (psql-command "NY_PSQL_CMD" "echo" query-type filters) :output t))
-        ((eq env 'ca)       (uiop:run-program (psql-command "CA_PSQL_CMD" "echo" query-type filters) :output t))
-        ((eq env 'ca-local) (uiop:run-program (psql-command "CA_LOC_PSQL_CMD" "echo" query-type filters) :output t))
-        ((eq env 'ny-local) (uiop:run-program (psql-command "NY_LOC_PSQL_CMD" "echo" query-type filters) :output t))
-        (t                  (error 'invalid-environment
-                                   :message (format t "Invalid environment: ~A~%" env)))))
-
-
+(defun get-args (argv)
+  (let ((env (assoc (read-from-string (car argv)) *environments*)))
+    (if env
+        (values env (cadr argv) (get-filters (cddr argv)))
+        (values nil (car argv) (get-filters (cdr argv))))))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
-  (handler-bind ((error #'print-usage))
-    (if (< (length argv) 2)
-        (print-usage)
-        (let* ((environment  (read-from-string (car argv)))
-               (query-type   (cadr argv))
-               (filters-list (loop :for filter :on (cddr argv) :by #'cddr
-                                   :collect (cons (car filter) (cadr filter))))
-               (filters      (get-filters filters-list)))
+  (if (= (length argv) 0)
+      (print-usage)
+      (handler-bind ((error #'print-usage))
+        (setq *environments* (get-environments))
+        (multiple-value-bind (env-pair query-type filters) (get-args argv)
           (setup-default-queries)
-          (run-query environment query-type filters)))))
+          (run-query env-pair query-type filters)))))
 
 ;;; vim: set ft=lisp lisp:
