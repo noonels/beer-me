@@ -14,8 +14,6 @@ Usage follows the form =beer-me [environment] <resource> [filters]=
   beer-me local record id "'<some uuid>'" artist.age 20 # note that single quotes must be wrapped in double quotes to be preserved
 
   beer-me record # output the query to get a record with no filters
-
-  # output the query to find
 #+end_src
 
 
