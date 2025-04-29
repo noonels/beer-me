@@ -36,9 +36,6 @@ is replaced with replacement."
                                        *config-dir*
                                        ".envlist")))
 
-(defparameter *query-type* nil)
-
-
 (defun setup-default-queries ()
   (ensure-directories-exist *config-dir*)
   (unless (probe-file *env-file*)
