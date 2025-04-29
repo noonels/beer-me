@@ -77,7 +77,8 @@ is replaced with replacement."
        (str:collapse-whitespaces                                      ; removing extraneous whitespace
         (concatenate 'string (cdr env-pair) " \""                     ; passing the query as a string
                      (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource (with quotes escaped)
-                     filters ";\"")))                                 ; followed by the statement-ending semicolon
+                     filters ";\""))                                  ; followed by the statement-ending semicolon
+       :output t)
       ;; ELSE
       (format t "[[ QUERY ]]~A~%"      ; simply output the query, without compacting
               (concatenate 'string
