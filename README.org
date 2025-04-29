@@ -67,4 +67,4 @@ beer-me record column_name "\"double quotes example\""
 #+end_src
 
 NOTE:
-Due to current constraints, filters can only be created that use === comparisons.
+Due to current constraints, filters can only be created that use ~=~ comparisons.
