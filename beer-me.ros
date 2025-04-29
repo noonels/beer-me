@@ -36,6 +36,9 @@ is replaced with replacement."
                                        *config-dir*
                                        ".envlist")))
 
+(defparameter *query-type* nil)
+
+
 (defun setup-default-queries ()
   (ensure-directories-exist *config-dir*)
   (unless (probe-file *env-file*)
@@ -55,21 +58,32 @@ is replaced with replacement."
                                        (car filter-pair)
                                        (cdr filter-pair)))))))
 
-(defun print-usage (&optional ctx)
-  (declare (ignorable ctx))
+(defun print-usage ()
   (format t "USAGE: beer-me [environment] <resource> [filters]"))
 
-(define-condition missing-template (error) ())
+(define-condition missing-template (error)
+  ((query-type :initarg :query-type
+               :initform nil
+               :reader query-type)
+   (filename :initarg :filename
+             :initform nil
+             :reader filename))
+  (:report (lambda (condition stream)
+             (format stream
+                     "Missing template file for ~A: ~A~&"
+                     (query-type condition)
+                     (filename condition)))))
+
 (defun get-query (query-type)
   (let ((filename (uiop:native-namestring
                    (concatenate 'string
-                                "~/.config/beer-me/"
+                                *config-dir*
                                 query-type
                                 ".sql"))))
     (if (probe-file filename)
         (uiop:read-file-string filename)
-        (error 'missing-template
-               :message (format t "Missing template file for ~A: ~A~%" query-type filename)))))
+        (error 'missing-template :query-type query-type :filename filename))))
+
 
 (defun run-query (env-pair query-type filters)
   (if env-pair                                                        ; if we have a valid environment
@@ -102,10 +116,15 @@ is replaced with replacement."
   (declare (ignorable argv))
   (if (= (length argv) 0)
       (print-usage)
-      (handler-bind ((error #'print-usage))
-        (setq *environments* (get-environments))
-        (multiple-value-bind (env-pair query-type filters) (get-args argv)
-          (setup-default-queries)
-          (run-query env-pair query-type filters)))))
+      (handler-case (progn
+                      (setq *environments* (get-environments))
+                      (multiple-value-bind (env-pair query-type filters) (get-args argv)
+                        (setq *query-type* query-type)
+                        (setup-default-queries)
+                        (run-query env-pair query-type filters)))
+
+        (error (c)                      ; if we catch an error
+          (format t "~A" c)))))         ; just write it out rather than dropping to debugger
+
 
 ;;; vim: set ft=lisp lisp:
