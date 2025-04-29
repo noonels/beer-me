@@ -75,7 +75,7 @@ is replaced with replacement."
   (if env-pair                                                        ; if we have a valid environment
       (uiop:run-program                                               ; run the psql command for that environment
        (str:collapse-whitespaces                                      ; removing extraneous whitespace
-        (concatenate 'string (cdr env-pair) "\""                      ; passing the query as a string
+        (concatenate 'string (cdr env-pair) " \""                     ; passing the query as a string
                      (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource (with quotes escaped)
                      filters ";\"")))                                 ; followed by the statement-ending semicolon
       ;; ELSE
@@ -93,7 +93,6 @@ is replaced with replacement."
 
 (defun get-args (argv)
   (let ((env (assoc (read-from-string (car argv)) *environments*)))
-    (format t "env: ~A~%read: ~A~%args: ~A~%envs: ~A~%" env (read-from-string (car argv)) argv *environments*)
     (if env
         (values env (cadr argv) (get-filters (cddr argv)))
         (values nil (car argv) (get-filters (cdr argv))))))
