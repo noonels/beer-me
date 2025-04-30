@@ -116,7 +116,6 @@ is replaced with replacement."
       (handler-case (progn
                       (setq *environments* (get-environments))
                       (multiple-value-bind (env-pair query-type filters) (get-args argv)
-                        (setq *query-type* query-type)
                         (setup-default-queries)
                         (run-query env-pair query-type filters)))
 
