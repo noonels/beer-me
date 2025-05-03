@@ -62,9 +62,16 @@ which will be parsed in pairs, and reformated into a where clause.
 Note that if you wish to inject quotes (of any kind, single or double),
 you must do so by wrapping them in additional quotes like so:
 #+begin_src bash
-beer-me record column_name "'single quotes example'"
-beer-me record column_name "\"double quotes example\""
+  beer-me record column_name "'single quotes example'"
+  beer-me record column_name "\"double quotes example\""
 #+end_src
 
-NOTE:
-Due to current constraints, filters can only be created that use ~=~ comparisons.
+*** Injecting arbitrary filters
+If a filter other than a simple equality check is required,
+the entirety of the desired filter can be injected using quotes.
+
+Note that for the parser to recognize an already complete filter, it /must/  contain
+*at least one* whitespace.
+#+begin_src bash
+  beer-me record "column_name ilike '%match-string%'"
+#+end_src

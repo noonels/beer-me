@@ -6,7 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (progn ;;init forms
   (ros:ensure-asdf)
-  #+quicklisp(ql:quickload '("str" "split-sequence") :silent t)
+  #+quicklisp(ql:quickload '("str" "split-sequence" "cl-ppcre") :silent t)
   )
 
 
@@ -43,17 +43,26 @@ is replaced with replacement."
                                   :if-does-not-exist :create)
       (write-sequence "DEFAULT \"psql -h localhost -d database -U postgres -p 5432\"" f))))
 
+(defun get-filter-strs (filter-list &optional acc)
+  (let ((whitespacep (ppcre:create-scanner "\s"))
+        (first (car filter-list))
+        (snd (cadr filter-list)))
+
+    (if (= 0 (length filter-list))
+        acc
+        (if (ppcre:scan whitespacep first) ; Whitespace indicates an existing filter that should be preserved
+            (get-filter-strs (cdr filter-list)
+                             (append acc (list first)))
+
+            (get-filter-strs (cddr filter-list)
+                             (append acc
+                                     (list (format nil "~A = ~A" first snd))))))))
 
 (defun get-filters (filter-list)
-  (let ((filter-pairs (loop :for filter :on filter-list :by #'cddr
-                            :collect (cons (car filter) (cadr filter)))))
-    (if (= 0 (length filter-pairs))
+  (let ((filter-strs (get-filter-strs filter-list)))
+    (if (= 0 (length filter-strs))
         ""
-        (format nil "WHERE~{ ~A~^ AND~&     ~}"
-                (loop :for filter-pair :in filter-pairs
-                      :collect (format nil "~A = ~A"
-                                       (car filter-pair)
-                                       (cdr filter-pair)))))))
+        (format nil "WHERE~{ ~A~^ AND~&     ~}" filter-strs))))
 
 (defun print-usage ()
   (format t "USAGE: beer-me [environment] <resource> [filters]"))
