@@ -20,7 +20,7 @@ Usage follows the form =beer-me [environment] <resource> [filters]=
 ** Environment
 Environments are specified in the =~/.config/beer-me/.envlist= file, which is of the form:
 #+begin_src
-  LOCAL "psql -h localhost -d my_database -U user -p 5432 -c"
+  LOCAL psql -h localhost -d my_database -U user -p 5432 -c
 #+end_src
 
 Where the first column is the name of the environment, which will later be passed as the optional first argument.
