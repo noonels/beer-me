@@ -14,21 +14,6 @@ exec ros -Q -- $0 "$@"
   (:use :cl))
 (in-package :ros.script.beer-me.3954356029)
 
-(defun replace-all (string part replacement &key (test #'char=))
-  "Returns a new string in which all the occurences of the part
-is replaced with replacement."
-  (with-output-to-string (out)
-    (loop with part-length = (length part)
-          for old-pos = 0 then (+ pos part-length)
-          for pos = (search part string
-                            :start2 old-pos
-                            :test test)
-          do (write-string string out
-                           :start old-pos
-                           :end (or pos (length string)))
-          when pos do (write-string replacement out)
-            while pos)))
-
 (defparameter *environments* nil)
 (defparameter *config-dir* (uiop:native-namestring "~/.config/beer-me/"))
 (defparameter *env-file* (uiop:native-namestring
@@ -41,7 +26,7 @@ is replaced with replacement."
   (unless (probe-file *env-file*)
     (with-open-file (f *env-file* :direction :output
                                   :if-does-not-exist :create)
-      (write-sequence "DEFAULT \"psql -h localhost -d database -U postgres -p 5432\"" f))))
+      (write-sequence "DEFAULT \"psql postgres://postgres:@localhost:5432/postgres -c\"" f))))
 
 (defun get-filter-strs (filter-list &optional acc)
   (let ((whitespacep (ppcre:create-scanner "\s"))
@@ -96,7 +81,7 @@ is replaced with replacement."
       (uiop:run-program                                               ; run the psql command for that environment
        (str:collapse-whitespaces                                      ; removing extraneous whitespace
         (concatenate 'string (cdr env-pair) " \""                     ; passing the query as a string
-                     (replace-all (get-query query-type) "\"" "\\\"") ; consisting of the query for the resource (with quotes escaped)
+                     (get-query query-type)                           ; consisting of the query for the resource (with quotes escaped)
                      filters ";\""))                                  ; followed by the statement-ending semicolon
        :output t)
       ;; ELSE
