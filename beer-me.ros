@@ -26,7 +26,7 @@ exec ros -Q -- $0 "$@"
   (unless (probe-file *env-file*)
     (with-open-file (f *env-file* :direction :output
                                   :if-does-not-exist :create)
-      (write-sequence "DEFAULT \"psql postgres://postgres:@localhost:5432/postgres -c\"" f))))
+      (write-sequence "DEFAULT psql postgres://postgres:@localhost:5432/postgres -c" f))))
 
 (defun get-filter-strs (filter-list &optional acc)
   (let ((whitespacep (ppcre:create-scanner "\s"))
