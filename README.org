@@ -8,10 +8,10 @@ Usage follows the form =beer-me [environment] <resource> [filters]=
 
 #+begin_src bash
   # example usage:
-  beer-me local record id "'<some uuid>'" # get an record by id from the 'local' environment/db
+  beer-me local record -f "id = '<some uuid>'" # get an record by id from the 'local' environment/db
 
   # get an record by id, AND artist age expected on the 'artist' table from the  env/db
-  beer-me local record id "'<some uuid>'" artist.age 20 # note that single quotes must be wrapped in double quotes to be preserved
+  beer-me local record -f "id '<some uuid>'" -f "artist.age = 20"
 
   beer-me record # output the query to get a record with no filters
 #+end_src
@@ -20,7 +20,7 @@ Usage follows the form =beer-me [environment] <resource> [filters]=
 ** Environment
 Environments are specified in the =~/.config/beer-me/.envlist= file, which is of the form:
 #+begin_src
-  LOCAL "psql -h localhost -d my_database -U user -p 5432 -c"
+  ENV	psql postgres://user:password@localhost:54323/my_database -c"
 #+end_src
 
 Where the first column is the name of the environment, which will later be passed as the optional first argument.
@@ -31,7 +31,7 @@ is expected to be concatenated to the end.
 
 Note: in the case of =psql=, for example, this means that the command must have a trailing =-c=.
 
-The columns may be either space or tab separated.
+The columns /must/ be tab separated.
 
 ** Resource
 A =resource= can be thought of as either a row from a single table,
@@ -54,24 +54,7 @@ It is very important that the *neither* the terminating =;= *nor* any =WHERE= cl
 are included in the file, or filter injection will /not/ work.
 
 ** Filters
-Any arguments passed after the resource will be considered part of the =filters=.
-
-=Filters= are expected to be in the form of whitespace-separated elements,
-which will be parsed in pairs, and reformated into a where clause.
-
-Note that if you wish to inject quotes (of any kind, single or double),
-you must do so by wrapping them in additional quotes like so:
 #+begin_src bash
-  beer-me record column_name "'single quotes example'"
-  beer-me record column_name "\"double quotes example\""
-#+end_src
-
-*** Injecting arbitrary filters
-If a filter other than a simple equality check is required,
-the entirety of the desired filter can be injected using quotes.
-
-Note that for the parser to recognize an already complete filter, it /must/  contain
-*at least one* whitespace.
-#+begin_src bash
-  beer-me record "column_name ilike '%match-string%'"
+  beer-me record -f "column_name = 'single quotes example'"
+  beer-me record -f "\"column_name\" 'double quotes example'"
 #+end_src
