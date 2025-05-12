@@ -2,9 +2,11 @@
 
 brew install gum > /dev/null 2>&1
 
-gum spin --title "Installing roswell" -- brew install roswell
-gum spin --title "Installing SBCL" -- ros install sbcl
-gum spin --title "Building executable" -- ros build ./beer-me.ros
+gum spin --title "Downloading script" -- \
+    sudo curl "https://raw.githubusercontent.com/noonels/beer-me/refs/heads/main/beer-me.sh" -o /usr/local/bin/beer-me
+gum spint --title "Adding executable permissions" -- \
+    sudo chmod +x /usr/local/bin/beer-me
+
 
 PASSWD_NOTICE=$(echo '{{ Italic "(password required)" }}' | gum format -t template)
 gum confirm "Copy executable to /usr/local/bin? $PASSWD_NOTICE" && sudo cp ./beer-me ~/.local/bin || echo '(executable not copied)'
