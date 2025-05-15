@@ -56,5 +56,5 @@ are included in the file, or filter injection will /not/ work.
 ** Filters
 #+begin_src bash
   beer-me record -f "column_name = 'single quotes example'"
-  beer-me record -f "\"column_name\" 'double quotes example'"
+  beer-me record -f "\"column_name\" = 'double quotes example'"
 #+end_src

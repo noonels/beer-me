@@ -3,6 +3,6 @@
 brew install gum > /dev/null 2>&1
 
 gum spin --title "Downloading script" -- \
-    sudo curl "https://raw.githubusercontent.com/noonels/beer-me/refs/heads/main/beer-me.sh" -o /usr/local/bin/beer-me
+    sudo curl "https://raw.githubusercontent.com/noonels/beer-me/refs/heads/main/beer-me" -o /usr/local/bin/beer-me
 gum spin --title "Adding executable permissions" -- \
     sudo chmod +x /usr/local/bin/beer-me
