@@ -1,19 +1,20 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 CONFIG_DIR="$HOME/.config/beer-me"
 USAGE="usage: beer-me [environment] <resource> [-f filter]"
 
 # print USAGE if necessary
-[[ -z $@ || $@ == *--help* ]] && echo "$USAGE" && exit 0
+[ -z "$*" ] && echo "$USAGE" && exit 0
 
 
 # create directory and .envlist if necessary
-[[ ! -d "$CONFIG_DIR" ]] && mkdir ~/.config/beer-me
-[[ ! -a "$CONFIG_DIR/.envlist" ]] && echo "DEFAULT\tpsql postgres://postgres:@localhost:5432/postgres -c" > ~/.config/beer-me/.envlist
+[ ! -d "$CONFIG_DIR" ] && mkdir ~/.config/beer-me
+[ ! -e "$CONFIG_DIR/.envlist" ] && printf "DEFAULT\tpsql postgres://postgres:@localhost:5432/postgres -c" > ~/.config/beer-me/.envlist
 
 # Load environment command, if applicable
-ENV_CMD=$(awk -F'\t' "/${1@U}/ { print \$2 }" "$CONFIG_DIR/.envlist")
-if [[ -z "$ENV_CMD" ]]; then
+ENV_UPPER=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+ENV_CMD=$(awk -F'\t' "/$ENV_UPPER/ { print \$2 }" "$CONFIG_DIR/.envlist")
+if [ -z "$ENV_CMD" ]; then
     RESOURCE=$1
     shift # move past resource
 else
@@ -22,49 +23,50 @@ else
     shift # move past resource
 fi
 
-POSITIONAL_ARGS=()
-FILTERS_ARR=()
-
-while [[ $# -gt 0 ]]; do
-  case $1 in
-      -f|--filter)
-          FILTERS_ARR+=("$2")
-          echo "${FILTERS_ARR[@]@Q}"
-      shift # past argument
-      shift # past value
-      ;;
-    -*|--*)
-        echo "beer-me: unreconized option $1"
-        echo "$USAGE"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
+FILTERS_RAW=""
+while [ $# -gt 0 ]; do
+    case $1 in
+        -h|--help)
+            echo "$USAGE"
+            exit 0
+            ;;
+        -f|--filter)
+            [ -z "$FILTERS_RAW" ] && FILTERS_RAW="$2" || FILTERS_RAW="$FILTERS_RAW:$2"
+            shift # past argument
+            shift # past value
+            ;;
+        --?*)
+            echo "beer-me: unreconized option $1"
+            echo "$USAGE"
+            exit 1
+            ;;
+        *)
+            shift
+            ;;
+    esac
 done
 
-NUM_FILTERS="${#FILTERS_ARR[@]}"
-echo="${NUM_FILTERS@Q}"
-
-if (( NUM_FILTERS > 0 )); then
-    FILTERS=$'WHERE'
-    for ((i = 0; i < NUM_FILTERS; i++ )); do
-        echo "${FILTERS_ARR[i]@Q}"
-        ((i != 0)) && FILTERS+=" AND"
-        FILTERS+="\n    ${FILTERS_ARR[i]}"
+if [ -n "$FILTERS_RAW" ]; then
+    FILTERS='WHERE'
+    first=1
+    IFS=':'
+    for filter in $FILTERS_RAW; do
+        [ "$first" -ne 1 ] && FILTERS="$FILTERS AND" || first=0
+        FILTERS="$FILTERS
+    $filter"
     done
 fi
 
 # execute the query
-[[ ! -a "$CONFIG_DIR/$RESOURCE.sql" ]] && echo "Missing template file for $RESOURCE: $CONFIG_DIR/$RESOURCE.sql"
-QUERY=$(< "$CONFIG_DIR/$RESOURCE.sql")
-if [[ -z "$ENV_CMD" ]]; then
-    echo "[[ QUERY ]]"
-    [[ -z "$FILTERS" ]] && \
+[ ! -e "$CONFIG_DIR/$RESOURCE.sql" ] &&
+    echo "Missing template file for $RESOURCE: $CONFIG_DIR/$RESOURCE.sql" &&
+    exit 1
+QUERY=$(cat "$CONFIG_DIR/$RESOURCE.sql")
+if [ -z "$ENV_CMD" ]; then
+    echo "[ QUERY ]"
+    [ -z "$FILTERS" ] && \
         echo "$QUERY;" || \
-        echo -e "$QUERY\n$FILTERS;"
+        printf "%s\n%s;\n" "$QUERY" "$FILTERS"
 else
     exec "$ENV_CMD" "$QUERY $FILTERS;"
 fi
